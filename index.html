@@ -43,11 +43,25 @@
         #hold {
           display: none;
         }
-        #out {
+        #outputs {
           position: absolute;
           top: 20px;
           left: 350px;
+        }
+        #outputs div {
+          display: inline-block;
+          vertical-align: top;
+          margin: 1em;
+        }
+        #outputs.horiz div {
+          display: block;
+        }
+        #out {
           border: 1px solid black;
+        }
+        #cssout {
+          width: 300px;
+          height: 100px;
         }
         .delete {
           float: right;
@@ -77,13 +91,25 @@
       <form id="settings">
         <label>Arrange images:</label>
         <label><input type="radio" name="orientation" checked="checked" value="vertical"/>vertically</label>
-        <label><input type="radio" name="orientation" value="horizontal"/>horizontally</label><br/>
+        <label><input type="radio" name="orientation" value="horiz"/>horizontally</label><br/>
         <label>Spacing(px):<input id="spacing" name="spacing" value="50"/></label>
+        <label><input type="checkbox" id="spacingMode" name="spacingMode" checked="checked"/>even positioning</label><br/>
       </form>
     </div>
     <ul id="list">
     </ul>
-    <canvas id="out"></canvas>
+    <div id="outputs">
+      <div>
+        <h4>Result Sprite:</h4>
+        <canvas id="out"></canvas>
+      </div>
+      <div>
+        <h4>CSS:<h4>
+        <label>horizontal offset: <input id="xoffset" value="0"/></label>
+        <label>vertical offset: <input id="yoffset" value="0"/></label>
+        <textarea id="cssout"></textarea>
+      </div>
+    </div>
     <div id="hold">
       <img>
     </div>
@@ -122,7 +148,7 @@
       })
 
       $("#settings").submit(redraw);
-      $("#settings input").change(redraw);
+      $("input").change(redraw);
 
       function redraw(e) {
         if (e && e.preventDefault) e.preventDefault();
@@ -131,7 +157,9 @@
             out = $out[0],
             settings = $("#settings").serializeArray(),
             orient = settings[0].value,
+            isHoriz = orient == "horiz",
             spacing = parseInt(settings[1].value) || 0,
+            evenspacing = $("#spacingMode:checked").length > 0,
             maxWidth = 0,
             maxHeight = 0,
             images = [], img,
@@ -141,28 +169,33 @@
           return;
         };
         $("#msg").hide();
+        var longdim = 0;
         lis.each(function (i,v) {
           img = $("img", v);
           maxWidth = Math.max(maxWidth, img.width());
           maxHeight = Math.max(maxHeight, img.height());
-          images.push(img[0]);
+          images.push(img);
+          longdim += spacing + (isHoriz ? img.width() : img.height());
         });
-        if (orient == "horizontal") {
-          var w = spacing * (images.length - 1) + img.width();
-          out.width = w;
-          out.height = maxHeight;
-        } else {
-          var h = spacing * (images.length - 1) + img.height();
-          out.width = maxWidth;
-          out.height = h;
-        }
+        longdim -= spacing;
+        if (evenspacing) longdim = spacing * (images.length - 1) + img.height();
+        out.width = isHoriz ? longdim : maxWidth;
+        out.height = isHoriz ? maxHeight : longdim;
+        $("#outputs").removeClass("horiz");
+        if (isHoriz) $("#outputs").addClass("horiz");
+        $("#cssout").text("");
         var ctx = out.getContext("2d");
+        var pos = 0, x, y, img,
+            xoff = parseInt($("#xoffset").val()) || 0,
+            yoff = parseInt($("#yoffset").val()) || 0;
         for (var i=0; i<images.length; i++) {
-          if (orient == "horizontal") {
-            ctx.drawImage(images[i],i*spacing,0);
-          } else {
-            ctx.drawImage(images[i],0,i*spacing);
-          }
+          img = images[i];
+          if (evenspacing) pos = i * spacing;
+          x = isHoriz ? pos : 0;
+          y = isHoriz ? 0 : pos;
+          $("#cssout").append("background-position: " + (x + xoff) + "px " + (-y + yoff) + "px;\n");
+          ctx.drawImage(img[0],x,y);
+          if (!evenspacing) pos += spacing + (isHoriz ? img.width() : img.height());
         }
       }
 
