@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>The Spritificator v1</title>
+    <style>
+        html {
+          height: 100%;
+        }
+        label {
+          display: block;
+        }
+        body {
+          margin: 0;
+          padding: 0;
+          height: 100%;
+          font-family: Helvetica, Arial, sans-serif;
+          font-size: 13px;
+        }
+        #menu, #list {
+          width: 300px;
+          padding: 1px;
+          background: #eee;
+          list-style-type: none;
+        }
+        #menu {
+          padding: 1em;
+        }
+        #list li {
+          border: 1px solid black;
+          padding: .5em;
+          margin: 8px;
+          height: 32px;
+          cursor: move;
+          background: white;
+        }
+        #list div {
+          float: left;
+          height: 32px;
+          width: 32px;
+          overflow:hidden;
+          margin-right: 1em;
+        }
+        #hold {
+          display: none;
+        }
+        #out {
+          position: absolute;
+          top: 20px;
+          left: 350px;
+          border: 1px solid black;
+        }
+        .delete {
+          float: right;
+          width: 16px;
+          height: 16px;
+          text-align: center;
+          cursor: pointer;
+          border: 1px solid black;
+        }
+        #msg {
+          position: absolute;
+          top: 0;
+          left: 0;
+          height: 100%;
+          width: 100%;
+          background: rgba(0,0,0,.3);
+        }
+        #msg h2 {
+          text-align: center;
+          position: relative;
+          top: 43%;
+        }
+    </style>
+  </head>
+  <body>
+    <div id="menu">
+      <form id="settings">
+        <label>Arrange images:</label>
+        <label><input type="radio" name="orientation" checked="checked" value="vertical"/>vertically</label>
+        <label><input type="radio" name="orientation" value="horizontal"/>horizontally</label><br/>
+        <label>Spacing(px):<input id="spacing" name="spacing" value="50"/></label>
+      </form>
+    </div>
+    <ul id="list">
+    </ul>
+    <canvas id="out"></canvas>
+    <div id="hold">
+      <img>
+    </div>
+    <div id="msg"><h2>Drag and Drop some images onto this page to get started!</h2></div>
+    
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.7.1/jquery-ui.min.js"></script>
+    <script>
+    
+      function cancel(e) {
+        e.stopPropagation();
+        e.preventDefault();
+      }
+      
+      var fileId = 0;
+      
+      $(document.body).bind('dragover', cancel)
+        .bind('dragenter', cancel)
+        .bind('drop', function (e) {
+            e.preventDefault();
+            var files = e.originalEvent.dataTransfer.files;
+            for (var i=0; i<files.length; i++) {
+              var f = files[i];
+              var el = "<li><div><img src='" + f.getAsDataURL() + "'></div><span>" + f.name + "</span><a class='delete'>x</a></li>";
+              var img = new Image();
+              img.src = f.getAsDataURL();
+              $("#list").append(el);
+            }
+            setTimeout(redraw,0);
+         });
+         
+      $("#list").delegate(".delete", "click", function(e) {
+        e.preventDefault();
+        $(this).parent().remove();
+        redraw();
+      })
+
+      $("#settings").submit(redraw);
+      $("#settings input").change(redraw);
+
+      function redraw(e) {
+        if (e && e.preventDefault) e.preventDefault();
+        localStorage.setItem("images", $("#list").html());
+        var $out = $("#out"),
+            out = $out[0],
+            settings = $("#settings").serializeArray(),
+            orient = settings[0].value,
+            spacing = parseInt(settings[1].value) || 0,
+            maxWidth = 0,
+            maxHeight = 0,
+            images = [], img,
+            lis = $("#list li");
+        if (lis.length == 0) {
+          $("#msg").show();
+          return;
+        };
+        $("#msg").hide();
+        lis.each(function (i,v) {
+          img = $("img", v);
+          maxWidth = Math.max(maxWidth, img.width());
+          maxHeight = Math.max(maxHeight, img.height());
+          images.push(img[0]);
+        });
+        if (orient == "horizontal") {
+          var w = spacing * (images.length - 1) + img.width();
+          out.width = w;
+          out.height = maxHeight;
+        } else {
+          var h = spacing * (images.length - 1) + img.height();
+          out.width = maxWidth;
+          out.height = h;
+        }
+        var ctx = out.getContext("2d");
+        for (var i=0; i<images.length; i++) {
+          if (orient == "horizontal") {
+            ctx.drawImage(images[i],i*spacing,0);
+          } else {
+            ctx.drawImage(images[i],0,i*spacing);
+          }
+        }
+      }
+
+      $("#list").sortable()
+        .disableSelection()
+        .bind("sortupdate", function(e, ui) {
+          redraw();
+        });
+        
+      $("#list").html(localStorage.getItem("images") || "");
+      redraw();
+    </script>
+  </body>
+</html>
